@@ -1,0 +1,61 @@
+name: PEFT Repo Metrics
+
+on:
+  schedule:
+    - cron: "0 4 * * *"   # daily at 04:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  run-metrics:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    env:
+      # Configure your target on the Hub:
+      HUB_REPO: BenjaminB/peft-repo-metrics
+      # Token must have write access to the repo above
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
+    steps:
+      - name: Check out code-checker (this repo)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          repository: BenjaminBossan/code-checker
+
+      - name: Check out PEFT
+        uses: actions/checkout@v4
+        with:
+          repository: huggingface/peft
+          path: peft
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system deps (cloc)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cloc
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas huggingface_hub
+
+      - name: Generate code quality report from PEFT
+        run: |
+          # main.py lives in this (code-checker) repo root
+          python main.py peft/src -o report.json
+
+      - name: Append metrics row to HF Hub CSV
+        env:
+          HUGGING_FACE_HUB_TOKEN: ${{ env.HF_TOKEN }}   # picked up by huggingface_hub
+        run: |
+          python analyze.py report.json \
+            --src-path peft/src \
+            --hub-repo "${HUB_REPO}"
