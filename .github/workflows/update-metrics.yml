@@ -23,6 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          path: peft-repo-metrics
           repository: BenjaminBossan/peft-repo-metrics
 
       - name: Check out code-checker
@@ -63,6 +64,6 @@ jobs:
         env:
           HUGGING_FACE_HUB_TOKEN: ${{ env.HF_TOKEN }}   # picked up by huggingface_hub
         run: |
-          python analyze.py report.json \
+          python peft-repo-metrics/analyze.py report.json \
             --src-path peft/src \
             --hub-repo "${HUB_REPO}"
