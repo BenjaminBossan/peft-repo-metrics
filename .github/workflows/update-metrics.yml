@@ -19,10 +19,17 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
     steps:
-      - name: Check out code-checker (this repo)
+      - name: Check this repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          repository: BenjaminBossan/peft-repo-metrics
+
+      - name: Check out code-checker
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: code-checker
           repository: BenjaminBossan/code-checker
 
       - name: Check out PEFT
@@ -50,7 +57,7 @@ jobs:
       - name: Generate code quality report from PEFT
         run: |
           # main.py lives in this (code-checker) repo root
-          python main.py peft/src -o report.json
+          python code-checker/main.py peft/src -o report.json
 
       - name: Append metrics row to HF Hub CSV
         env:
