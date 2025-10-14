@@ -20,6 +20,7 @@ import datetime as dt
 import io
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
@@ -150,9 +151,9 @@ def cloc_metrics(path: Path) -> dict[str, int]:
     return result
 
 
-def aggregate_metrics(df: pd.DataFrame) -> dict[str, float | int | str]:
+def aggregate_metrics(df: pd.DataFrame, date: str) -> dict[str, float | int | str]:
     result: dict[str, float | int | str] = {}
-    result["date"] = dt.date.isoformat(dt.datetime.now(tz=dt.UTC))
+    result["date"] = date
     result["docstring coverage"] = float((df["docstring"].str.len() > 0).mean().round(4))
     result["docstring missing"] = int((df["docstring"].str.len() == 0).sum())
 
@@ -280,9 +281,10 @@ def main() -> None:
     )
     parser.add_argument("report", type=Path, help="Path to the JSON results file")
     parser.add_argument("--src-path", type=Path, default=".", help="Path to the source code (for cloc metrics)")
+    parser.add_argument("--date", default=dt.date.isoformat(dt.datetime.now(tz=dt.UTC)), help="Date for the metrics row (default: today)")
 
     # NEW: Hub-related args
-    parser.add_argument("--hub-repo", required=True, help="Space repo id, e.g. 'username/space-name'")
+    parser.add_argument("--hub-repo", default=None, help="Space repo id, e.g. 'username/space-name'")
     parser.add_argument(
         "--hub-file", default="metrics.csv", help="Path of the CSV inside the repo (default: metrics.csv)"
     )
@@ -296,11 +298,15 @@ def main() -> None:
 
     df = load_report_to_df(args.report, only_leaves=True)
     df = process_df(df)
-    agg = aggregate_metrics(df)
+    agg = aggregate_metrics(df, date=args.date)
     agg.update(cloc_metrics(args.src_path))
 
-    # You can add extra context if helpful (e.g., project name or git ref)
-    # agg["project"] = "peft"  # example
+    if not args.hub_repo:
+        df_row = pd.DataFrame([agg])
+        all_cols = list(dict.fromkeys(df_row.columns.tolist()))
+        df_row = df_row.reindex(columns=all_cols)
+        print(df_row.to_csv(index=False))
+        sys.exit(0)
 
     sha = append_metrics_to_hub_csv(
         repo_id=args.hub_repo,
