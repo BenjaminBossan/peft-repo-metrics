@@ -134,7 +134,11 @@ def main() -> None:
 
             # run main.py to produce JSON report for this snapshot
             report_path = analyzer_dir / args.report_name
-            cp_report = run([sys.executable, "main.py", str(src_dir), "-o", str(report_path)], cwd=analyzer_dir, check=False)
+            cmd = [sys.executable, "main.py", str(src_dir), "-o", str(report_path)]
+            # models directory is too huge in transformers, dups take too long to calculate, thus skipping it
+            if "transformers" in str(src_dir):
+                cmd += ["--ignore", str(src_dir / "transformers" / "models")]
+            cp_report = run(cmd, cwd=analyzer_dir, check=False)
             if cp_report.returncode != 0:
                 print(f"error: main.py failed on commit {sha} ({git_commit_date(repo, sha).date().isoformat()}), aborting", file=sys.stderr)
                 print(cp_report.stderr, file=sys.stderr)
